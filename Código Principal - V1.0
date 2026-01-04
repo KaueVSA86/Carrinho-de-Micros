@@ -1,0 +1,74 @@
+;========================================;
+;   PROJETO FINAL - MICROPROCESSADORES   ;
+;	         CARRINHO MAPEADOR		         ;
+;========================================;
+; Equipe CAOS:				                   ;   
+;   Kauê Almeida - 570004  (Programador) ;   
+;   Israel Medeiros - 	   (Programador) ;   
+;   Douglas Fabiano -	      (Designer)   ;   
+;   Pedro Coutinho - 			               ;   
+;   João Gabriel - 			                 ;   
+;========================================; 
+    
+;========================================;
+;	PINOUT - PIC - PERIFÉRICOS	           ;
+;========================================;    
+;		              DRIVER			           ;   
+;----------------------------------------;      
+; - EN_A: RB1				                     ;   
+; - EN_B: RB2				                     ;   
+; - PWM_A: CCP1 (RC2)			               ;   
+; - PWM_B: CCP2 (RC1)			               ;	
+;----------------------------------------;
+;		SENSORES		                         ;
+;----------------------------------------;
+; - SENSOR FRENTE: RB4			             ;
+; - SENSOR TRÁS: RB5                     ;
+;----------------------------------------;
+;		              CHAVES		             ;
+;----------------------------------------;
+; - CHAVE DE MODO: RB		                 ;   
+; - CHAVE DE SELEÇÃO: RB                 ;
+;----------------------------------------;
+    
+;========================================;
+;		VARIÁVEIS		 ;
+;========================================;    
+  CBLOCK 0x20
+    DUTY_A
+    DUTY_B
+    
+    PR2
+    PRESCALE
+  ENDC  
+    
+    
+    
+#INCLUDE <P16F877A.INC>    
+    
+ORG 0x000
+GOTO MAIN
+
+ORG 0x004
+RETFIE
+    
+MAIN:
+
+; CONFIGURA O SENTIDO DOS PINOS    
+BANKSEL TRISB
+MOVLW '00110000'    ; Pinos de Entrada: 4 e 5    -  Pinos de Saída: Restante
+MOVWF TRISB    
+MOVLW '00000000'    ; Pinos de Saída: Todos     
+MOVWF TRISC    
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+END    
