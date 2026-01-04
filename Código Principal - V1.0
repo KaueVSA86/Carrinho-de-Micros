@@ -1,38 +1,38 @@
 ;========================================;
 ;   PROJETO FINAL - MICROPROCESSADORES   ;
-;	         CARRINHO MAPEADOR		         ;
+;	         CARRINHO MAPEADOR		     ;
 ;========================================;
-; Equipe CAOS:				                   ;   
+; Equipe CAOS:				             ;   
 ;   Kauê Almeida - 570004  (Programador) ;   
 ;   Israel Medeiros - 	   (Programador) ;   
-;   Douglas Fabiano -	      (Designer)   ;   
-;   Pedro Coutinho - 			               ;   
-;   João Gabriel - 			                 ;   
+;   Douglas Fabiano -	      (Designer) ;   
+;   Pedro Coutinho - 			         ;   
+;   João Gabriel - 			             ;   
 ;========================================; 
     
 ;========================================;
-;	PINOUT - PIC - PERIFÉRICOS	           ;
+;	PINOUT - PIC - PERIFÉRICOS	         ;
 ;========================================;    
-;		              DRIVER			           ;   
+;		          DRIVER		         ;   
 ;----------------------------------------;      
-; - EN_A: RB1				                     ;   
-; - EN_B: RB2				                     ;   
-; - PWM_A: CCP1 (RC2)			               ;   
-; - PWM_B: CCP2 (RC1)			               ;	
+; - EN_A: RB1				             ;   
+; - EN_B: RB2				             ;   
+; - PWM_A: CCP1 (RC2)			         ;   
+; - PWM_B: CCP2 (RC1)			         ;	
 ;----------------------------------------;
-;		SENSORES		                         ;
+;		         SENSORES	             ;
 ;----------------------------------------;
-; - SENSOR FRENTE: RB4			             ;
+; - SENSOR FRENTE: RB4		             ;
 ; - SENSOR TRÁS: RB5                     ;
 ;----------------------------------------;
-;		              CHAVES		             ;
+;		          CHAVES	             ;
 ;----------------------------------------;
-; - CHAVE DE MODO: RB		                 ;   
+; - CHAVE DE MODO: RB		             ;   
 ; - CHAVE DE SELEÇÃO: RB                 ;
 ;----------------------------------------;
     
 ;========================================;
-;		VARIÁVEIS		 ;
+;		        VARIÁVEIS	             ;
 ;========================================;    
   CBLOCK 0x20
     DUTY_A
