@@ -1,0 +1,232 @@
+;========================================;
+;   PROJETO FINAL - MICROPROCESSADORES   ;
+;	          CARRINHO MAPEADOR	        	 ;
+;========================================;
+; Equipe CAOS:				                   ;   
+;   Kauê Almeida - 570004  (Programador) ;   
+;   Israel Medeiros - 	   (Programador) ;   
+;   Douglas Fabiano -	      (Designer)   ;   
+;   Pedro Coutinho - 			               ;   
+;   João Gabriel - 			                 ;   
+;========================================; 
+    
+;========================================;
+;      	PINOUT - PIC - PERIFÉRICOS	     ;
+;========================================;    
+;		               DRIVER		             ;   
+;----------------------------------------;      
+; - EN_A1: RD7		                  		 ;   
+; - EN_A2: RD6				                   ;
+; - EN_B1: RD5				                   ;    
+; - EN_B2: RD4				                   ;    
+; - PWM_A: CCP1 (RC2)			               ;   
+; - PWM_B: CCP2 (RC1)			               ;	
+;----------------------------------------;
+;		              SENSORES	          	 ;
+;----------------------------------------;
+; - SENSOR FRENTE: RB4			             ;
+; - SENSOR TRÁS: RB5                     ;
+;----------------------------------------;    
+;	           BOTÕES DE CONTROLE		       ; 
+;----------------------------------------;
+; - MODO: RB6				                     ;
+; - SELEÇÃO: RB7			                   ;
+;========================================;
+    
+;========================================;
+;		VARIÁVEIS		                         ;
+;========================================;    
+  CBLOCK 0x20
+    CPASSO_D
+    CPASSO_E
+    
+    GIRO
+    GIRO_OP
+    
+    DUTY_A
+    DUTY_B
+    
+    PR2
+    PRESCALE
+  ENDC      
+;========================================;
+   
+  
+  
+#INCLUDE <P16F877A.INC>    
+    
+ORG 0x000
+GOTO MAIN
+  
+;========================================;
+;	          VETOR DE INTERRUPÇÃO		     ;
+;========================================;      
+ORG 0x004
+
+BCF INTCON, 1	    ; Desativa a  flag da interrupção externa
+BTFSS PORTB, 7	    ; Verifica qual a prioridade
+GOTO ESQUERDA
+GOTO DIREITA
+; desativar a flag do intcon preparar a verificação da interrupção frontal ou traseira pra mudança de direção através de RB0  
+  
+RETFIE
+    
+MAIN:
+    
+;=================================;
+;      CONFIGURAÇÃO INICIAL	      ;
+;=================================;
+; Preecher valor das variáveis
+BANKSEL ADCON0
+MOVLW 50	; Valor inicial do Giro
+MOVWF GIRO
+    
+MOVLW 50	; Valor pro dutyA
+MOVWF DUTY_A    
+    
+MOVLW 50	; Valor pro dutyB 
+MOVWF DUTY_B    
+    
+MOVLW 50	; Valor pro PR2
+MOVWF PR2
+    
+MOVLW 50	; Valor do Prescale
+MOVWF PRESCALE
+   
+CLRF CPASSO_D	; Valor inicial do contador de passso direito
+CLRF CPASSO_E   ; Valor inicial do contador de passo esquerdo 
+    
+; Configuração do sentido das portas
+BANKSEL TRISB
+MOVLW '11110001'    ; Pinos de Entrada: 0, 4, 5, 6, 7    -  Pinos de Saída: Restante
+MOVWF TRISB
+    
+MOVLW '00000000'    ; Pinos de Saída: Todos     
+MOVWF TRISC
+
+MOVLW '00000000'    ; Pinos de Saída: Todos    
+MOVWF TRISD
+    
+; Configuração das interrupções    
+MOVLW '10010000'    ; Ativa a interrupção global - Restante das interrupções ficam desativadas
+MOVWF INTCON
+    
+BSF OPTION_REG, 6   ; Ativa a interrupção por borda de subida
+
+;Configurações do timer e do dutycycle    
+BANKSEL T2CON	
+MOVLW '00000100'    ; Ajusta o pré (1:1) & post scale (1:1) e liga o TMR2
+MOVWF T2CON
+
+;=================================;    
+    
+    
+
+;=================================;
+;	         SELEÇÃO DE MODO	      ;
+;=================================;
+
+MODO:	;função de seleção do modo (exploração ou seguimento)
+
+    BTFSC PORTB, 6	;se = 0 pula a linha e vai pro modo parado ou seguimento
+    GOTO CAMINHO 
+    
+    BTFSS PORTB, 7	;se = 1 modo vai
+    GOTO PARADO		;se = 0 modo parado
+    GOTO FRENTE
+
+PARADO:
+    BCF PORTD, 7
+    BCF PORTD, 6
+    BCF PORTD, 5
+    BCF PORTD, 4
+GOTO MODO
+    
+    
+;=================================;
+    
+    
+    
+    
+;===================================================;
+;	      FUNÇÃO PARA GERAR INTERRUPÇÃO EXTERNA  	    ;
+;===================================================;	    
+GERA_INT:   ; Preparado pra lógica invertida (sensor = 0)    
+    BCF PORTB, 3     ; Valor incial de RB3 = 0 
+    
+    BTFSS PORTB, 4   ; Se RB4 = 1
+    BSF PORTB, 3     ; RB3 = 1
+
+    BTFSS PORTB, 5   ; Se RB5 = 1
+    BSF PORTB, 3     ; RB3 = 1
+    
+    BCF PORTB, 3     ; Valor final para RB3 = 0 
+RETURN    
+;===================================================;    
+
+    
+;===================================================;
+;	BLOCO PRINCIPAL DE IR PARA FRENTE	    ;
+;===================================================;	            
+FRENTE:
+
+MOVF GIRO,0	; Move o valor da variável giro para W
+MOVWF GIRO_OP	; Move o valor em W para o operador de giro
+    
+CALL GERA_INT	; Chama a função de verificar a interrupção    
+
+BTFSS PORTB, 6	; Verifica se mudou de estado a chave principal
+GOTO MODO	; Vai pra função modo
+
+BTFSS PORTB, 7  ; Verifica qual a prioridade  
+GOTO PASSO_E    ; Chama a função de adicionar passo ao contador esquerdo
+GOTO PASSO_D	; Chama a função de adicionar passo ao contador direito
+;---------------------------------------------------;
+    
+    
+;===================================================;
+;		  BLOCOS DE ROTAÇÃO		                          ;
+;===================================================;	            
+ESQUERDA:    
+    
+    DEC GIRO_OP		; Decrementa a função giro
+    MOVF GIRO_OP,0	; Move de Giro_OP para W
+    SUBLW 0		; Subtrai 0 para ver se chegou ao limite ou seja giro_op = 0
+    
+    BTFSS STATUS, Z	; Se Giro_OP = 0 --> Retfie, caso Giro_OP = 1 --> Retorna para Direita
+    GOTO ESQUERDA
+    
+RETFIE    
+
+DIREITA:
+    DEC GIRO_OP		; Decrementa a função giro
+    MOVF GIRO_OP,0	; Move de Giro_OP para W
+    SUBLW 0		; Subtrai 0 para ver se chegou ao limite ou seja giro_op = 0
+    
+    BTFSS STATUS, Z	; Se Giro_OP = 0 --> Retfie, caso Giro_OP = 1 --> Retorna para Direita
+    GOTO DIREITA
+RETFIE    
+    
+    
+    
+    
+    
+;===================================================;
+;	         FUNÇÃO PARA INCREMENTAR OS PASSOS	      ;
+;===================================================;	        
+PASSO_D:
+    INC CPASSO_D
+    GOTO FRENTE
+;---------------------------------------------------;
+PASSO_E:
+    INC CPASSO_E
+    GOTO FRENTE
+;===================================================;   
+    
+    
+;tudo no loop, verifica a prioridade para o seguimento do caminho, verifica o modo para ligar o timer    
+    
+    
+    
+    
+END    
