@@ -1,6 +1,6 @@
 ;========================================;
 ;   PROJETO FINAL - MICROPROCESSADORES   ;
-;	         CARRINHO MAPEADOR		     ;
+;	    CARRINHO MAPEADOR		         ;
 ;========================================;
 ; Equipe CAOS:				             ;   
 ;   Kauê Almeida - 570004  (Programador) ;   
@@ -13,28 +13,31 @@
 ;========================================;
 ;	PINOUT - PIC - PERIFÉRICOS	         ;
 ;========================================;    
-;		          DRIVER		         ;   
+;		  DRIVER		                 ;   
 ;----------------------------------------;      
 ; - EN_A: RB1				             ;   
 ; - EN_B: RB2				             ;   
 ; - PWM_A: CCP1 (RC2)			         ;   
 ; - PWM_B: CCP2 (RC1)			         ;	
 ;----------------------------------------;
-;		         SENSORES	             ;
+;		SENSORES		                 ;
 ;----------------------------------------;
-; - SENSOR FRENTE: RB4		             ;
+; - SENSOR FRENTE: RB4	        		 ;
 ; - SENSOR TRÁS: RB5                     ;
+;----------------------------------------;    
+;	   BOTÕES DE CONTROLE		         ;
 ;----------------------------------------;
-;		          CHAVES	             ;
-;----------------------------------------;
-; - CHAVE DE MODO: RB		             ;   
-; - CHAVE DE SELEÇÃO: RB                 ;
-;----------------------------------------;
+; - MODO: RB6				             ;
+; - SELEÇÃO: RB7			             ;
+;========================================;
     
 ;========================================;
-;		        VARIÁVEIS	             ;
+;		VARIÁVEIS		                 ;
 ;========================================;    
   CBLOCK 0x20
+    PASSO_D
+    PASSO_E
+    
     DUTY_A
     DUTY_B
     
@@ -50,16 +53,84 @@ ORG 0x000
 GOTO MAIN
 
 ORG 0x004
+
+; desativar a flag do intcon preparar a verificação da interrupção frontal ou traseira pra mudança de direção através de RB0  
+  
 RETFIE
     
 MAIN:
-
-; CONFIGURA O SENTIDO DOS PINOS    
+    
+;=================================;
+;      CONFIGURAÇÃO INICIAL	  ;
+;=================================;
+; Configuração do sentido das portas
 BANKSEL TRISB
-MOVLW '00110000'    ; Pinos de Entrada: 4 e 5    -  Pinos de Saída: Restante
-MOVWF TRISB    
+MOVLW '11110001'    ; Pinos de Entrada: 0, 4, 5, 6, 7    -  Pinos de Saída: Restante
+MOVWF TRISB
+    
 MOVLW '00000000'    ; Pinos de Saída: Todos     
-MOVWF TRISC    
+MOVWF TRISC
+    
+
+; Configuração das interrupções    
+MOVLW '10010000'    ; Ativa a interrupção global - Restante das interrupções ficam desativadas
+MOVWF INTCON    
+
+;Configurações do timer e do dutycycle    
+BANKSEL T2CON	
+MOVLW '00000100'    ; Ajusta o pré (1:1) & post scale (1:1) e liga o TMR2
+MOVWF T2CON
+
+;=================================;    
+    
+    
+
+;=================================;
+;	 SELEÇÃO DE MODO	  ;
+;=================================;
+
+MODO:	;função de seleção do modo (exploração ou seguimento)
+
+    BTFSC PORTB, 6	;se = 0 pula a linha e vai pro modo parado ou seguimento
+    GOTO CAMINHO 
+    
+    BTFSS PORTB, 7	;se = 1 modo vai
+    GOTO PARADO		;se = 0 modo parado
+    GOTO VAI
+
+PARADO:
+    BCF PORTB, 1
+    BCF PORTB, 2
+GOTO MODO
+   
+VAI: 
+    
+    
+
+;=================================;
+    
+;===================================================;
+;	FUNÇÃO PARA GERAR INTERRUPÇÃO EXTERNA	    ;
+;===================================================;	    
+GERA_INT:   ; Preparado pra lógica invertida (sensor = 0)    
+    BCF PORTB, 3     ; Valor incial de RB3 = 0 
+    
+    BTFSS PORTB, 4   ; Se RB4 = 1
+    BSF PORTB, 3     ; RB3 = 1
+
+    BTFSS PORTB, 5   ; Se RB5 = 1
+    BSF PORTB, 3     ; RB3 = 1
+    
+    BCF PORTB, 3     ; Valor final para RB3 = 0 
+RETURN    
+;===================================================;    
+
+FRENTE:
+
+INC PASSO    
+    
+CALL FRENTE    
+
 
 
     
