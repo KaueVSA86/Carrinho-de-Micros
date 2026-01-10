@@ -1,40 +1,40 @@
 ;============================================;
 ;     PROJETO FINAL - MICROPROCESSADORES     ;
-;	            CARRINHO MAPEADOR	        	   ;
+;	            CARRINHO MAPEADOR	         ;
 ;============================================;
-; Equipe CAOS:				                       ;   
+; Equipe CAOS:				                 ;   
 ;   Kauê Almeida - 570004      (Programador) ;   
 ;   Israel Medeiros - 570948   (Programador) ;   
-;   Douglas Fabiano -	            (Designer) ;   
-;   Pedro Coutinho - 			                   ;   
-;   João Gabriel - 			                     ;   
+;   Douglas Fabiano -	          (Designer) ;   
+;   Pedro Coutinho - 			             ;   
+;   João Gabriel - 			                 ;   
 ;============================================; 
     
 ;========================================;
 ;      	PINOUT - PIC - PERIFÉRICOS	     ;
 ;========================================;    
-;		               DRIVER		             ;   
+;		         DRIVER		             ;   
 ;----------------------------------------;      
-; - EN_A1: RD7		                  		 ;   
-; - EN_A2: RD6				                   ;
-; - EN_B1: RD5				                   ;    
-; - EN_B2: RD4				                   ;    
-; - PWM_A: CCP1 (RC2)			               ;   
-; - PWM_B: CCP2 (RC1)			               ;	
+; - EN_A1: RD7	                  		 ;   
+; - EN_A2: RD6	    	                 ;
+; - EN_B1: RD5				             ;    
+; - EN_B2: RD4				             ;    
+; - PWM_A: CCP1 (RC2)			         ;   
+; - PWM_B: CCP2 (RC1)			         ;	
 ;----------------------------------------;
-;		              SENSORES	          	 ;
+;		         SENSORES	          	 ;
 ;----------------------------------------;
-; - SENSOR FRENTE: RB4			             ;
+; - SENSOR FRENTE: RB4		             ;
 ; - SENSOR TRÁS: RB5                     ;
 ;----------------------------------------;    
-;	           BOTÕES DE CONTROLE		       ; 
+;	        BOTÕES DE CONTROLE           ; 
 ;----------------------------------------;
-; - MODO: RB6	(Mapeamento ou Run)	       ;
-; - SELEÇÃO: RB7	(Prioridade ou Stop)   ;
+; - MODO: RB6	(Mapeamento ou Run)	     ;
+; - SELEÇÃO: RB7	(Prioridade ou Stop) ;
 ;========================================;
     
 ;========================================;
-;		VARIÁVEIS		                         ;
+;		        VARIÁVEIS		         ;
 ;========================================;    
   CBLOCK 0x20
     CPASSO_D ; Contador de Passo da Direita
@@ -62,7 +62,7 @@ ORG 0x000
 GOTO MAIN
   
 ;========================================;
-;	          VETOR DE INTERRUPÇÃO		     ;
+;	        VETOR DE INTERRUPÇÃO	     ;
 ;========================================;      
 ORG 0x004
 
@@ -132,7 +132,7 @@ MOVWF T2CON
     
 
 ;=================================;
-;	         SELEÇÃO DE MODO	      ;
+;	       SELEÇÃO DE MODO	      ;
 ;=================================;
 
 MODO:	;função de seleção do modo (exploração ou seguimento)
@@ -155,7 +155,7 @@ GOTO MODO
     
     
 ;===================================================;
-;	      FUNÇÃO PARA GERAR INTERRUPÇÃO EXTERNA  	    ;
+;	      FUNÇÃO PARA GERAR INTERRUPÇÃO EXTERNA	    ;
 ;===================================================;	    
 GERA_INT:   ; Preparado pra lógica invertida (sensor = 0)    
     BCF PORTB, 3     ; Valor incial de RB3 = 0 
@@ -184,7 +184,7 @@ RETURN
 
     
 ;===================================================;
-;	BLOCO PRINCIPAL DE IR PARA FRENTE	    ;
+;	       BLOCO PRINCIPAL DE IR PARA FRENTE	    ;
 ;===================================================;	            
 FRENTE:
 
@@ -203,7 +203,7 @@ GOTO PASSO_D	  ; Chama a função de adicionar passo ao contador direito
     
     
 ;===================================================;
-;		  BLOCOS DE ROTAÇÃO		                          ;
+;		          BLOCOS DE ROTAÇÃO		            ;
 ;===================================================;
     
 ESQUERDA:        
@@ -227,7 +227,7 @@ DIREITA:
     
     
 ;===================================================;
-;	         FUNÇÃO PARA INCREMENTAR OS PASSOS	      ;
+;	       FUNÇÃO PARA INCREMENTAR OS PASSOS	    ;
 ;===================================================;	        
 PASSO_D:
     INC CPASSO_D
