@@ -29,7 +29,7 @@
 ;----------------------------------------;    
 ;	        BOTÕES DE CONTROLE           ; 
 ;----------------------------------------;
-; - MODO: RB6	(Mapeamento ou Run)	     ;
+; - MODO: RB6	     (Mapeamento ou Run) ;
 ; - SELEÇÃO: RB7	(Prioridade ou Stop) ;
 ;========================================;
     
@@ -45,6 +45,9 @@
 
     GIRO     ; Valor de Giro (90°)
     GIRO_OP  ; Operador do Giro
+
+    PASSO    ; Valor do Passo (A definir)
+    PASSO_OP ; Operador do Passo
     
     DUTY_A  
     DUTY_B
@@ -84,8 +87,12 @@ MAIN:
 ;=================================;
 ; Preecher valor das variáveis
 BANKSEL ADCON0
+
 MOVLW 50	; Valor inicial do Giro
 MOVWF GIRO
+
+MOVLW 200	; Valor inicial do Passo
+MOVWF PASSO
     
 MOVLW 50	; Valor pro dutyA
 MOVWF DUTY_A    
@@ -99,7 +106,7 @@ MOVWF PR2
 MOVLW 50	; Valor do Prescale
 MOVWF PRESCALE
    
-CLRF CPASSO_D	  ; Valor inicial do contador de passso direito
+CLRF CPASSO_D	; Valor inicial do contador de passso direito
 CLRF CPASSO_E   ; Valor inicial do contador de passo esquerdo 
 CLRF F_DIR      ; Valor inical da flag direita
 CLRF F_ESQ      ; Valor incial da flag esquerda
@@ -119,7 +126,6 @@ MOVWF TRISD
 ; Configuração das interrupções    
 MOVLW '10010000'    ; Ativa a interrupção global - Restante das interrupções ficam desativadas
 MOVWF INTCON
-    
 BSF OPTION_REG, 6   ; Ativa a interrupção por borda de subida
 
 ;Configurações do timer e do dutycycle    
@@ -136,13 +142,17 @@ MOVWF T2CON
 ;=================================;
 
 MODO:	;função de seleção do modo (exploração ou seguimento)
-
-    BTFSC PORTB, 6	;se = 0 pula a linha e vai pro modo parado ou seguimento
-    GOTO CAMINHO    ;se = 1 vai pro modo de mapeamento 
     
-    BTFSS PORTB, 7	;testa o bit 7 da portb
-    GOTO PARADO		  ;se = 0 modo parado
-    GOTO FRENTE     ;se = 1 modo frente
+    BANKSEL PORTD
+    MOVLW '00000000' ; Garantia de que o carrinho inicie parado
+    MOVWF PORTD
+    
+    BTFSC PORTB, 6	; Se = 0 pula a linha e vai pro modo parado ou seguimento
+    GOTO CAMINHO    ; Se = 1 vai pro modo de mapeamento 
+    
+    BTFSS PORTB, 7	; Testa o bit 7 da portb
+    GOTO PARADO		; Se = 0 modo parado
+    GOTO FRENTE     ; Se = 1 modo frente
 
 PARADO:
     MOVLW '00000000'
@@ -158,6 +168,7 @@ GOTO MODO
 ;	      FUNÇÃO PARA GERAR INTERRUPÇÃO EXTERNA	    ;
 ;===================================================;	    
 GERA_INT:   ; Preparado pra lógica invertida (sensor = 0)    
+    
     BCF PORTB, 3     ; Valor incial de RB3 = 0 
     
     BTFSS PORTB, 4   ; Se RB4 = 1
@@ -169,7 +180,7 @@ GERA_INT:   ; Preparado pra lógica invertida (sensor = 0)
     BTFSS PORTB, 3   ; Se RB3 = 0, retorna ao programa, caso contrário irá verificar qual flag foi ativa
     GOTO NSABO           
 
-    BTFSS F_ESQ, 0  ; Verifica se a flag da esquerda foi ativada
+    BTFSS F_ESQ, 0   ; Verifica se a flag da esquerda foi ativada
     GOTO DIREITA
     GOTO ESQUERDA
   
@@ -188,17 +199,36 @@ RETURN
 ;===================================================;	            
 FRENTE:
 
-MOVF GIRO,0	; Move o valor da variável giro para W
-MOVWF GIRO_OP	; Move o valor em W para o operador de giro
+BANKSEL PORTD
+
+MOVF PASSO, 0        ; Move o valor da variável passo para W
+MOVWF PASSO_OP       ; Move o valor em W para o operador de passo 
+
+MOVF GIRO,0	         ; Move o valor da variável giro para W
+MOVWF GIRO_OP	     ; Move o valor em W para o operador de giro
     
-CALL GERA_INT	; Chama a função de verificar a interrupção    
+CALL GERA_INT	     ; Chama a função de verificar a interrupção    
 
-BTFSS PORTB, 6	; Verifica se mudou de estado a chave principal
-GOTO MODO	; Vai pra função modo
+MOVLW '10010000'     ; Move o valor para W
+MOVWF PORTD          ; Move o valor de W para portd (ligar os motores)
 
-BTFSS PORTB, 7  ; Verifica qual a prioridade  
-GOTO PASSO_E    ; Chama a função de adicionar passo ao contador esquerdo
-GOTO PASSO_D	  ; Chama a função de adicionar passo ao contador direito
+LUPASSO:
+
+BTFSS PORTB, 6	    ; Verifica se mudou de estado a chave principal
+GOTO MODO	        ; Vai pra função modo
+
+DEC PASSO_OP        ; Decrementa o operador de passo
+MOVF PASSO_OP, 0    ; Move para W
+SUBLW 0             ; Subtrai por 0
+
+BTFSS STATUS, Z     ; Verifica se já acabou o loop
+GOTO LUPASSO        ; Retorna para a rotina de ir pra frente
+
+BTFSS PORTB, 7      ; Verifica qual a prioridade  
+GOTO PASSO_E        ; Chama a função de adicionar passo ao contador esquerdo
+GOTO PASSO_D	    ; Chama a função de adicionar passo ao contador direito
+
+
 ;---------------------------------------------------;
     
     
@@ -206,25 +236,35 @@ GOTO PASSO_D	  ; Chama a função de adicionar passo ao contador direito
 ;		          BLOCOS DE ROTAÇÃO		            ;
 ;===================================================;
     
-ESQUERDA:        
+ESQUERDA:
+    BANKSEL PORTD
+    MOVLW '01010000'  ; Liga o motor esquerdo e inverte o direito
+    MOVWF PORTD
+
+    LUESQUERDA:
+    
     DEC GIRO_OP		  ; Decrementa a função giro
-    MOVF GIRO_OP,0	; Move de Giro_OP para W
+    MOVF GIRO_OP,0	  ; Move de Giro_OP para W
     SUBLW 0		      ; Subtrai 0 para ver se chegou ao limite ou seja giro_op = 0
     
-    BTFSS STATUS, Z	; Se Giro_OP = 0 --> Retfie, caso Giro_OP = 1 --> Retorna para Direita
-    GOTO ESQUERDA
-    GOTO NSABO    
+    BTFSS STATUS, Z	  ; Se Z = 1 --> NSABO (Giro completo), caso Z = 0 --> Retorna para o loop da esquerda
+    GOTO LUESQUERDA   ; Loop até o giro acabar
+    GOTO NSABO        ; Volta pro NSABO
 
 DIREITA:
+    BANKSEL PORTD
+    MOVLW '10100000'  ; Liga o motor esquerdo e inverte o direito
+    MOVWF PORTD
+
+    LUDIREITA:
+
     DEC GIRO_OP		  ; Decrementa a função giro
-    MOVF GIRO_OP,0	; Move de Giro_OP para W
+    MOVF GIRO_OP,0	  ; Move de Giro_OP para W
     SUBLW 0		      ; Subtrai 0 para ver se chegou ao limite ou seja giro_op = 0
     
-    BTFSS STATUS, Z	; Se Giro_OP = 0 --> Retfie, caso Giro_OP = 1 --> Retorna para Direita
-    GOTO DIREITA
-    GOTO NSABO
-
-    
+    BTFSS STATUS, Z	  ; Se Z = 1 --> NSABO (Giro completo), caso Z = 0 --> Retorna para o loop da esquerda
+    GOTO LUDIREITA    ; Loop até o giro acabar
+    GOTO NSABO        ; Volta pro NSABO
     
 ;===================================================;
 ;	       FUNÇÃO PARA INCREMENTAR OS PASSOS	    ;
