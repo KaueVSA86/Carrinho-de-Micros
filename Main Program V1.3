@@ -1,40 +1,43 @@
 ;============================================;
 ;     PROJETO FINAL - MICROPROCESSADORES     ;
-;	            CARRINHO MAPEADOR	         ;
+;	      CARRINHO MAPEADOR	             ;
 ;============================================;
-; Equipe CAOS:				                 ;   
+; Equipe CAOS:			             ;   
 ;   Kauê Almeida - 570004      (Programador) ;   
 ;   Israel Medeiros - 570948   (Programador) ;   
 ;   Douglas Fabiano - 570151      (Designer) ;   
-;   Pedro Coutinho - 			             ;   
-;   João Gabriel - 			                 ;   
+;   Pedro Coutinho - 		             ;   
+;   João Gabriel - 		             ;   
 ;============================================; 
     
 ;========================================;
-;      	PINOUT - PIC - PERIFÉRICOS	     ;
+;      	PINOUT - PIC - PERIFÉRICOS	 ;
 ;========================================;    
-;		         DRIVER		             ;   
+;		 DRIVER		         ;   
 ;----------------------------------------;      
-; - EN_A1: RD7	                  		 ;   
+; - EN_A1: RD7	                  	 ;   
 ; - EN_A2: RD6	    	                 ;
-; - EN_B1: RD5				             ;    
-; - EN_B2: RD4				             ;    
-; - PWM_A: CCP1 (RC2)			         ;   
-; - PWM_B: CCP2 (RC1)			         ;	
+; - EN_B1: RD5				 ;    
+; - EN_B2: RD4				 ;    
+; - PWM_A: CCP1 (RC2)			 ;   
+; - PWM_B: CCP2 (RC1)			 ;	
 ;----------------------------------------;
-;		         SENSORES	          	 ;
+;		SENSORES	      	 ;
 ;----------------------------------------;
-; - SENSOR FRENTE: RB4		             ;
+; - SENSOR FRENTE: RB4		         ;
 ; - SENSOR TRÁS: RB5                     ;
 ;----------------------------------------;    
-;	        BOTÕES DE CONTROLE           ; 
+;	    BOTÕES DE CONTROLE           ; 
 ;----------------------------------------;
 ; - MODO: RB6	     (Mapeamento ou Run) ;
-; - SELEÇÃO: RB7	(Prioridade ou Stop) ;
+; - SELEÇÃO: RB7    (Prioridade ou Stop) ;
 ;========================================;
+
+    
+#INCLUDE <P16F877A.INC>        
     
 ;========================================;
-;		        VARIÁVEIS		         ;
+;	        VARIÁVEIS	         ;
 ;========================================;    
   CBLOCK 0x20
     CPASSO_D ; Contador de Passo da Direita
@@ -51,26 +54,19 @@
     
     DUTY_A  
     DUTY_B
-    
-    PR2
-    PRESCALE
   ENDC      
 ;========================================;
    
-  
-  
-#INCLUDE <P16F877A.INC>    
-    
 ORG 0x000
 GOTO MAIN
   
 ;========================================;
-;	        VETOR DE INTERRUPÇÃO	     ;
+;	   VETOR DE INTERRUPÇÃO          ;
 ;========================================;      
 ORG 0x004
 
 BANKSEL PORTD
-MOVLW '00000000'    ; Desliga todos os motores
+MOVLW b'00000000'    ; Desliga todos os motores
 MOVWF PORTD         ; Manda o comando de desligar os motores para portd
 
 BCF INTCON, 1  	    ; Desativa a  flag da interrupção externa
@@ -83,7 +79,7 @@ RETFIE
 MAIN:
     
 ;=================================;
-;      CONFIGURAÇÃO INICIAL	      ;
+;      CONFIGURAÇÃO INICIAL	  ;
 ;=================================;
 ; Preecher valor das variáveis
 BANKSEL ADCON0
@@ -99,12 +95,6 @@ MOVWF DUTY_A
     
 MOVLW 50	; Valor pro dutyB 
 MOVWF DUTY_B    
-    
-MOVLW 50	; Valor pro PR2
-MOVWF PR2
-    
-MOVLW 50	; Valor do Prescale
-MOVWF PRESCALE
    
 CLRF CPASSO_D	; Valor inicial do contador de passso direito
 CLRF CPASSO_E   ; Valor inicial do contador de passo esquerdo 
@@ -114,37 +104,51 @@ CLRF F_ESQ      ; Valor incial da flag esquerda
     
 ; Configuração do sentido das portas
 BANKSEL TRISB
-MOVLW '11110001'    ; Pinos de Entrada: 0, 4, 5, 6, 7    -  Pinos de Saída: Restante
+MOVLW b'11110001'    ; Pinos de Entrada: 0, 4, 5, 6, 7    -  Pinos de Saída: Restante
 MOVWF TRISB
     
-MOVLW '00000000'    ; Pinos de Saída: Todos     
+MOVLW b'00000000'    ; Pinos de Saída: Todos     
 MOVWF TRISC
 
-MOVLW '00000000'    ; Pinos de Saída: Todos    
+MOVLW b'00000000'    ; Pinos de Saída: Todos    
 MOVWF TRISD
     
 ; Configuração das interrupções    
-MOVLW '10010000'    ; Ativa a interrupção global - Restante das interrupções ficam desativadas
+MOVLW b'10010000'    ; Ativa a interrupção global - Restante das interrupções ficam desativadas
 MOVWF INTCON
 BSF OPTION_REG, 6   ; Ativa a interrupção por borda de subida
 
 ;Configurações do timer e do dutycycle    
 BANKSEL T2CON	
-MOVLW '00000100'    ; Ajusta o pré (1:1) & post scale (1:1) e liga o TMR2
-MOVWF T2CON
+MOVLW   b'00000111'   ; Postscale = 0, TMR2ON = 1, Prescaler = 16
+MOVWF   T2CON
 
+; Período do PWM
+MOVLW   d'124'	      ; Valor do PR2
+MOVWF   PR2    
+    
+MOVLW   b'00001100'   ; Ativa o modo PWM do CCP1 e CCP2
+MOVWF   CCP1CON    
+MOVWF   CCP2CON
+    
+; Duty Cycle = 50% (512)
+MOVLW   d'128'
+MOVWF   CCPR1L
+MOVWF   CCPR2L    
+    
+    
 ;=================================;    
     
     
 
 ;=================================;
-;	       SELEÇÃO DE MODO	      ;
+;	  SELEÇÃO DE MODO         ;
 ;=================================;
 
 MODO:	;função de seleção do modo (exploração ou seguimento)
     
     BANKSEL PORTD
-    MOVLW '00000000' ; Garantia de que o carrinho inicie parado
+    MOVLW b'00000000' ; Garantia de que o carrinho inicie parado
     MOVWF PORTD
     
     BTFSC PORTB, 6	; Se = 0 pula a linha e vai pro modo parado ou seguimento
@@ -155,7 +159,7 @@ MODO:	;função de seleção do modo (exploração ou seguimento)
     GOTO FRENTE     ; Se = 1 modo frente
 
 PARADO:
-    MOVLW '00000000'
+    MOVLW b'00000000'
     MOVWF PORTD
 GOTO MODO
         
@@ -165,7 +169,7 @@ GOTO MODO
     
     
 ;===================================================;
-;	      FUNÇÃO PARA GERAR INTERRUPÇÃO EXTERNA	    ;
+;	 FUNÇÃO PARA GERAR INTERRUPÇÃO EXTERNA	    ;
 ;===================================================;	    
 GERA_INT:   ; Preparado pra lógica invertida (sensor = 0)    
     
@@ -184,18 +188,23 @@ GERA_INT:   ; Preparado pra lógica invertida (sensor = 0)
     GOTO DIREITA
     GOTO ESQUERDA
   
-    NSABO:
+NSABO:
     
-    BCF F_DIR        ; Limpa a flag direita
-    BCF F_ESQ        ; Limpa a flag esquerda
-    BCF PORTB, 3     ; Valor final para RB3 = 0
+    BCF F_DIR, 0        ; Limpa a flag direita
+    BCF F_ESQ, 0        ; Limpa a flag esquerda
+    BCF PORTB, 3        ; Valor final para RB3 = 0
     
 RETURN    
 ;===================================================;    
 
+CAMINHO:
+    GOTO FRENTE
+    
+    
+    
     
 ;===================================================;
-;	       BLOCO PRINCIPAL DE IR PARA FRENTE	    ;
+;	   BLOCO PRINCIPAL DE IR PARA FRENTE	    ;
 ;===================================================;	            
 FRENTE:
 
@@ -209,7 +218,7 @@ MOVWF GIRO_OP	     ; Move o valor em W para o operador de giro
     
 CALL GERA_INT	     ; Chama a função de verificar a interrupção    
 
-MOVLW '10010000'     ; Move o valor para W
+MOVLW b'10010000'     ; Move o valor para W
 MOVWF PORTD          ; Move o valor de W para portd (ligar os motores)
 
 LUPASSO:
@@ -217,7 +226,7 @@ LUPASSO:
 BTFSS PORTB, 6	    ; Verifica se mudou de estado a chave principal
 GOTO MODO	        ; Vai pra função modo
 
-DEC PASSO_OP        ; Decrementa o operador de passo
+DECF PASSO_OP        ; Decrementa o operador de passo
 MOVF PASSO_OP, 0    ; Move para W
 SUBLW 0             ; Subtrai por 0
 
@@ -233,17 +242,17 @@ GOTO PASSO_D	    ; Chama a função de adicionar passo ao contador direito
     
     
 ;===================================================;
-;		          BLOCOS DE ROTAÇÃO		            ;
+;		 BLOCOS DE ROTAÇÃO	            ;
 ;===================================================;
     
 ESQUERDA:
     BANKSEL PORTD
-    MOVLW '01010000'  ; Liga o motor esquerdo e inverte o direito
+    MOVLW b'01010000'  ; Liga o motor esquerdo e inverte o direito
     MOVWF PORTD
 
     LUESQUERDA:
     
-    DEC GIRO_OP		  ; Decrementa a função giro
+    DECF GIRO_OP		  ; Decrementa a função giro
     MOVF GIRO_OP,0	  ; Move de Giro_OP para W
     SUBLW 0		      ; Subtrai 0 para ver se chegou ao limite ou seja giro_op = 0
     
@@ -253,12 +262,12 @@ ESQUERDA:
 
 DIREITA:
     BANKSEL PORTD
-    MOVLW '10100000'  ; Liga o motor esquerdo e inverte o direito
+    MOVLW b'10100000'  ; Liga o motor esquerdo e inverte o direito
     MOVWF PORTD
 
     LUDIREITA:
 
-    DEC GIRO_OP		  ; Decrementa a função giro
+    DECF GIRO_OP		  ; Decrementa a função giro
     MOVF GIRO_OP,0	  ; Move de Giro_OP para W
     SUBLW 0		      ; Subtrai 0 para ver se chegou ao limite ou seja giro_op = 0
     
@@ -267,14 +276,14 @@ DIREITA:
     GOTO NSABO        ; Volta pro NSABO
     
 ;===================================================;
-;	       FUNÇÃO PARA INCREMENTAR OS PASSOS	    ;
+;	  FUNÇÃO PARA INCREMENTAR OS PASSOS	    ;
 ;===================================================;	        
 PASSO_D:
-    INC CPASSO_D
+    INCF CPASSO_D
     GOTO FRENTE
 ;---------------------------------------------------;
 PASSO_E:
-    INC CPASSO_E
+    INCF CPASSO_E
     GOTO FRENTE
 ;===================================================;   
         
@@ -290,7 +299,7 @@ PASSO_E:
  
  ; temos duas opções, se PASSO_ESQUERDA > PASSO_DIREITA, W > 0 e CARRY = 0, caso contrário CARRY = 1
  BTFSS STATUS, Z ; se PASSO_ESQUERDA = PASSO_DIREITA, Z = 1
- GOTO  VOUVER                ; tanto faz
+ GOTO  MENOR_ESQ                ; tanto faz
  
  ; se chegou aqui, os valores são diferentes...
  BTFSS STATUS, C ; se ESQ > DIR, C = 1
