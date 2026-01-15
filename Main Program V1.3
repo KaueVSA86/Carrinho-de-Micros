@@ -15,17 +15,17 @@
 ;========================================;    
 ;		 DRIVER		         ;   
 ;----------------------------------------;      
-; - EN_A1: RD7	                  	 ;   
-; - EN_A2: RD6	    	                 ;
-; - EN_B1: RD5				 ;    
-; - EN_B2: RD4				 ;    
+; - EN_1: RD7	                  	 ;   
+; - EN_2: RD6	    	                 ;
+; - EN_3: RD5				 ;    
+; - EN_4: RD4				 ;    
 ; - PWM_A: CCP1 (RC2)			 ;   
 ; - PWM_B: CCP2 (RC1)			 ;	
 ;----------------------------------------;
 ;		SENSORES	      	 ;
 ;----------------------------------------;
 ; - SENSOR FRENTE: RB4		         ;
-; - SENSOR TRÁS: RB5                     ;
+; - PINO LIVRE: RB5                      ;
 ;----------------------------------------;    
 ;	    BOTÕES DE CONTROLE           ; 
 ;----------------------------------------;
@@ -52,8 +52,6 @@
     PASSO    ; Valor do Passo (A definir)
     PASSO_OP ; Operador do Passo
     
-    DUTY_A  
-    DUTY_B
   ENDC      
 ;========================================;
    
@@ -66,9 +64,9 @@ GOTO MAIN
 ORG 0x004
 
 BANKSEL PORTD
-MOVLW b'00000000'    ; Desliga todos os motores
+MOVLW b'00000000'   ; Desliga todos os motores
 MOVWF PORTD         ; Manda o comando de desligar os motores para portd
-
+  
 BCF INTCON, 1  	    ; Desativa a  flag da interrupção externa
 BTFSS PORTB, 7	    ; Verifica qual a prioridade
 BSF F_ESQ, 0        ; Ativa a flag de controle de giro esquerdo
@@ -89,22 +87,15 @@ MOVWF GIRO
 
 MOVLW 200	; Valor inicial do Passo
 MOVWF PASSO
-    
-MOVLW 50	; Valor pro dutyA
-MOVWF DUTY_A    
-    
-MOVLW 50	; Valor pro dutyB 
-MOVWF DUTY_B    
-   
+        
 CLRF CPASSO_D	; Valor inicial do contador de passso direito
 CLRF CPASSO_E   ; Valor inicial do contador de passo esquerdo 
 CLRF F_DIR      ; Valor inical da flag direita
 CLRF F_ESQ      ; Valor incial da flag esquerda
-
     
 ; Configuração do sentido das portas
 BANKSEL TRISB
-MOVLW b'11110001'    ; Pinos de Entrada: 0, 4, 5, 6, 7    -  Pinos de Saída: Restante
+MOVLW b'11100001'    ; Pinos de Entrada: 0, 4, 5, 6, 7    -  Pinos de Saída: Restante
 MOVWF TRISB
     
 MOVLW b'00000000'    ; Pinos de Saída: Todos     
@@ -148,15 +139,15 @@ MOVWF   CCPR2L
 MODO:	;função de seleção do modo (exploração ou seguimento)
     
     BANKSEL PORTD
-    MOVLW b'00000000' ; Garantia de que o carrinho inicie parado
+    MOVLW b'00000000'	; Garantia de que o carrinho inicie parado
     MOVWF PORTD
     
     BTFSC PORTB, 6	; Se = 0 pula a linha e vai pro modo parado ou seguimento
-    GOTO CAMINHO    ; Se = 1 vai pro modo de mapeamento 
+    GOTO CAMINHO	; Se = 1 vai pro modo de mapeamento 
     
     BTFSS PORTB, 7	; Testa o bit 7 da portb
     GOTO PARADO		; Se = 0 modo parado
-    GOTO FRENTE     ; Se = 1 modo frente
+    GOTO FRENTE		; Se = 1 modo frente
 
 PARADO:
     MOVLW b'00000000'
@@ -171,24 +162,23 @@ GOTO MODO
 ;===================================================;
 ;	 FUNÇÃO PARA GERAR INTERRUPÇÃO EXTERNA	    ;
 ;===================================================;	    
-GERA_INT:   ; Preparado pra lógica invertida (sensor = 0)    
+GERA_INT:		; Preparado pra lógica normal (sensor = 1)    
     
-    BCF PORTB, 3     ; Valor incial de RB3 = 0 
+    BCF PORTB, 3	; Valor incial de RB3 = 0 
     
-    BTFSS PORTB, 4   ; Se RB4 = 1
-    BSF PORTB, 3     ; RB3 = 1
-
-    BTFSS PORTB, 5   ; Se RB5 = 1
-    BSF PORTB, 3     ; RB3 = 1
-
-    BTFSS PORTB, 3   ; Se RB3 = 0, retorna ao programa, caso contrário irá verificar qual flag foi ativa
+    BTFSC PORTB, 4	; Se RB4 = 0, CONTINUA
+    BSF PORTB, 3	; RB3 = 1
     GOTO NSABO           
 
-    BTFSS F_ESQ, 0   ; Verifica se a flag da esquerda foi ativada
+    BTFSS F_ESQ, 0	; Verifica se a flag da esquerda foi ativada
     GOTO DIREITA
     GOTO ESQUERDA
   
 NSABO:
+    
+    BTFSC PORTB, 4
+    GOTO GIRAR180
+    
     
     BCF F_DIR, 0        ; Limpa a flag direita
     BCF F_ESQ, 0        ; Limpa a flag esquerda
@@ -196,11 +186,6 @@ NSABO:
     
 RETURN    
 ;===================================================;    
-
-CAMINHO:
-    GOTO FRENTE
-    
-    
     
     
 ;===================================================;
@@ -210,33 +195,39 @@ FRENTE:
 
 BANKSEL PORTD
 
-MOVF PASSO, 0        ; Move o valor da variável passo para W
-MOVWF PASSO_OP       ; Move o valor em W para o operador de passo 
+MOVF PASSO, 0		 ; Move o valor da variável passo para W
+MOVWF PASSO_OP		 ; Move o valor em W para o operador de passo 
 
 MOVF GIRO,0	         ; Move o valor da variável giro para W
-MOVWF GIRO_OP	     ; Move o valor em W para o operador de giro
-    
-CALL GERA_INT	     ; Chama a função de verificar a interrupção    
+MOVWF GIRO_OP		 ; Move o valor em W para o operador de giro
+		 		 
+CALL GERA_INT		 ; Chama a função de verificar a interrupção    
 
-MOVLW b'10010000'     ; Move o valor para W
-MOVWF PORTD          ; Move o valor de W para portd (ligar os motores)
+MOVLW b'10010000'	 ; Move o valor para W
+MOVWF PORTD		 ; Move o valor de W para portd (ligar os motores)
 
 LUPASSO:
 
-BTFSS PORTB, 6	    ; Verifica se mudou de estado a chave principal
-GOTO MODO	        ; Vai pra função modo
+BTFSS PORTB, 6		 ; Verifica se mudou de estado a chave principal
+GOTO MODO	         ; Vai pra função modo
 
-DECF PASSO_OP        ; Decrementa o operador de passo
-MOVF PASSO_OP, 0    ; Move para W
-SUBLW 0             ; Subtrai por 0
+DECF PASSO_OP		 ; Decrementa o operador de passo
+MOVF PASSO_OP, 0	 ; Move para W
+SUBLW 0			 ; Subtrai por 0
 
-BTFSS STATUS, Z     ; Verifica se já acabou o loop
-GOTO LUPASSO        ; Retorna para a rotina de ir pra frente
+BTFSS STATUS, Z		 ; Verifica se já acabou o loop
+GOTO LUPASSO		 ; Retorna para a rotina de ir pra frente
 
-BTFSS PORTB, 7      ; Verifica qual a prioridade  
-GOTO PASSO_E        ; Chama a função de adicionar passo ao contador esquerdo
-GOTO PASSO_D	    ; Chama a função de adicionar passo ao contador direito
+BTFSC PORTB, 6		 ; GAMBIARRA   
+BTFSS PORTB, 7		 ; Verifica qual a prioridade  
 
+BTFSC PORTB, 6		 ; GAMBIARRA
+GOTO PASSO_E		 ; Chama a função de adicionar passo ao contador esquerdo
+
+BTFSC PORTB, 6		 ; GAMBIARRA    
+GOTO PASSO_D		 ; Chama a função de adicionar passo ao contador direito
+
+GOTO FRENTE		 ; LOOP FUNÇÃO FRENTE
 
 ;---------------------------------------------------;
     
@@ -244,36 +235,58 @@ GOTO PASSO_D	    ; Chama a função de adicionar passo ao contador direito
 ;===================================================;
 ;		 BLOCOS DE ROTAÇÃO	            ;
 ;===================================================;
-    
+      
+   
 ESQUERDA:
     BANKSEL PORTD
-    MOVLW b'01010000'  ; Liga o motor esquerdo e inverte o direito
+    MOVLW b'01010000'	 ; Liga o motor esquerdo e inverte o direito
     MOVWF PORTD
-
+    
     LUESQUERDA:
     
-    DECF GIRO_OP		  ; Decrementa a função giro
-    MOVF GIRO_OP,0	  ; Move de Giro_OP para W
-    SUBLW 0		      ; Subtrai 0 para ver se chegou ao limite ou seja giro_op = 0
+    DECF GIRO_OP	 ; Decrementa a função giro
+    MOVF GIRO_OP,0	 ; Move de Giro_OP para W
+    SUBLW 0		 ; Subtrai 0 para ver se chegou ao limite ou seja giro_op = 0
     
-    BTFSS STATUS, Z	  ; Se Z = 1 --> NSABO (Giro completo), caso Z = 0 --> Retorna para o loop da esquerda
-    GOTO LUESQUERDA   ; Loop até o giro acabar
-    GOTO NSABO        ; Volta pro NSABO
+    BTFSS STATUS, Z	 ; Se Z = 1 --> NSABO (Giro completo), caso Z = 0 --> Retorna para o loop da esquerda
+    GOTO LUESQUERDA	 ; Loop até o giro acabar
+    GOTO NSABO		 ; Volta pro NSABO
 
 DIREITA:
     BANKSEL PORTD
-    MOVLW b'10100000'  ; Liga o motor esquerdo e inverte o direito
-    MOVWF PORTD
-
+    MOVLW b'10100000'	 ; Liga o motor esquerdo e inverte o direito
+    MOVWF PORTD 
+    
     LUDIREITA:
 
-    DECF GIRO_OP		  ; Decrementa a função giro
-    MOVF GIRO_OP,0	  ; Move de Giro_OP para W
-    SUBLW 0		      ; Subtrai 0 para ver se chegou ao limite ou seja giro_op = 0
+    DECF GIRO_OP	 ; Decrementa a função giro
+    MOVF GIRO_OP,0	 ; Move de Giro_OP para W
+    SUBLW 0		 ; Subtrai 0 para ver se chegou ao limite ou seja giro_op = 0
     
-    BTFSS STATUS, Z	  ; Se Z = 1 --> NSABO (Giro completo), caso Z = 0 --> Retorna para o loop da esquerda
-    GOTO LUDIREITA    ; Loop até o giro acabar
-    GOTO NSABO        ; Volta pro NSABO
+    BTFSS STATUS, Z	 ; Se Z = 1 --> NSABO (Giro completo), caso Z = 0 --> Retorna para o loop da esquerda
+    GOTO LUDIREITA       ; Loop até o giro acabar
+    GOTO NSABO		 ; Volta pro NSABO
+    
+    
+GIRAR180:
+    BANKSEL PORTD
+    MOVF GIRO,0	         ; Move o valor da variável giro para W
+    MOVWF GIRO_OP	 ; Move o valor em W para o operador de giro
+    ADDWF GIRO_OP, 0	 ; fazer o dobro da variável giro
+    
+    MOVLW b'10100000'	 ; Liga o motor esquerdo e inverte o direito
+    MOVWF PORTD 
+    
+    LUGIRA:
+
+    DECF GIRO_OP	 ; Decrementa a função giro
+    MOVF GIRO_OP,0	 ; Move de Giro_OP para W
+    SUBLW 0		 ; Subtrai 0 para ver se chegou ao limite ou seja giro_op = 0
+    
+    BTFSS STATUS, Z	 ; Se Z = 1 --> NSABO (Giro completo), caso Z = 0 --> Retorna para o loop da esquerda
+    GOTO LUGIRA		 ; Loop até o giro acabar
+    GOTO NSABO		 ; Volta pro NSABO
+    
     
 ;===================================================;
 ;	  FUNÇÃO PARA INCREMENTAR OS PASSOS	    ;
@@ -291,28 +304,21 @@ PASSO_E:
 ;===================================================;
 ;                   MELHOR CAMINHO                  ;
 ;===================================================;	        
+ CAMINHO:
+    
+ ; Lógica de Subtração dos Passos: Esquerda - Direita   
+ MOVLW  CPASSO_D      ; W = CPASSO_D
+ SUBLW  CPASSO_E      ; W = C_PASSO_E - CPASSO_D
  
- ; lógica: subtrair os dois passos: PASSO_ESQUERDA´- PASSO_DIREITA -> se for maior que zero, o menor caminho é a direita e vice-versa.
- 
- MOVLW  CPASSO_D      ;W = CPASSO_D
- SUBLW  CPASSO_E      ;W =C_PASSO_E - CPASSO_D
- 
- ; temos duas opções, se PASSO_ESQUERDA > PASSO_DIREITA, W > 0 e CARRY = 0, caso contrário CARRY = 1
- BTFSS STATUS, Z ; se PASSO_ESQUERDA = PASSO_DIREITA, Z = 1
- GOTO  MENOR_ESQ                ; tanto faz
+ ; Caso onde PASSOE = PASSOD
+ BTFSS STATUS, Z 
+ BSF PORTB, 5
  
  ; se chegou aqui, os valores são diferentes...
- BTFSS STATUS, C ; se ESQ > DIR, C = 1
- GOTO MENOR_ESQ
+ BTFSS STATUS, C    ; Se ESQ > DIR, C = 1
+ BSF PORTB, 5	    ; Seta a flag do melhor caminho esquerda
+ BCF PORTB, 5	    ; OFF na flag do melhor caminho esquerda
  
- ; se chegou aqui, a direita foi menor...
- BSF PORTB, 7
- GOTO FRENTE
+ GOTO FRENTE 
  
- 
- MENOR_ESQ:
-    BCF PORTB, 7
-    GOTO FRENTE
-    
-    
 END
