@@ -7,7 +7,7 @@
 ;   Israel Medeiros - 570948   (Programador) ;   
 ;   Douglas Fabiano - 570151      (Designer) ;   
 ;   Pedro Coutinho - 		             ;   
-;   João Gabriel - 		             ;   
+;   João Gabriel - 		  (Mêcânico) ;   
 ;============================================; 
     
 ;========================================;
@@ -33,9 +33,9 @@
 ; - SELEÇÃO: RB7    (Prioridade ou Stop) ;
 ;========================================;
 
-    
 #INCLUDE <P16F877A.INC>        
-    
+__CONFIG _HS_OSC & _WDT_OFF & _LVP_OFF & _CP_OFF & _CPD_OFF
+
 ;========================================;
 ;	        VARIÁVEIS	         ;
 ;========================================;    
@@ -51,6 +51,8 @@
 
     PASSO    ; Valor do Passo (A definir)
     PASSO_OP ; Operador do Passo
+    
+    MERDA    ; Flag de verificação do caminho ao lado
     
   ENDC      
 ;========================================;
@@ -68,9 +70,13 @@ MOVLW b'00000000'   ; Desliga todos os motores
 MOVWF PORTD         ; Manda o comando de desligar os motores para portd
   
 BCF INTCON, 1  	    ; Desativa a  flag da interrupção externa
+
+BCF F_ESQ, 0	    ; Limpa a flag de controle de giro esqueda (prioridade a direita)
 BTFSS PORTB, 7	    ; Verifica qual a prioridade
-BSF F_ESQ, 0        ; Ativa a flag de controle de giro esquerdo
-BSF F_DIR, 0        ; Ativa a flag de controle de giro direito  
+BSF F_ESQ, 0        ; Ativa a flag de controle de giro esquerdo (prioridade a esquerda)
+
+
+  
   
 RETFIE
     
@@ -82,16 +88,15 @@ MAIN:
 ; Preecher valor das variáveis
 BANKSEL ADCON0
 
-MOVLW 50	; Valor inicial do Giro
+MOVLW d'100'	; Valor inicial do Giro
 MOVWF GIRO
 
-MOVLW 200	; Valor inicial do Passo
+MOVLW d'150'	; Valor inicial do Passo
 MOVWF PASSO
         
 CLRF CPASSO_D	; Valor inicial do contador de passso direito
 CLRF CPASSO_E   ; Valor inicial do contador de passo esquerdo 
-CLRF F_DIR      ; Valor inical da flag direita
-CLRF F_ESQ      ; Valor incial da flag esquerda
+CLRF F_ESQ      ; Valor inicial da flag esquerda
     
 ; Configuração do sentido das portas
 BANKSEL TRISB
@@ -103,6 +108,12 @@ MOVWF TRISC
 
 MOVLW b'00000000'    ; Pinos de Saída: Todos    
 MOVWF TRISD
+
+BCF OPTION_REG, 7   ; habilita pull-ups PORTB        
+
+BANKSEL PORTD
+MOVLW b'00000000'
+MOVWF PORTD    
     
 ; Configuração das interrupções    
 MOVLW b'10010000'    ; Ativa a interrupção global - Restante das interrupções ficam desativadas
@@ -122,8 +133,8 @@ MOVLW   b'00001100'   ; Ativa o modo PWM do CCP1 e CCP2
 MOVWF   CCP1CON    
 MOVWF   CCP2CON
     
-; Duty Cycle = 50% (512)
-MOVLW   d'128'
+; Duty Cycle = 50% (128)
+MOVLW   d'64'
 MOVWF   CCPR1L
 MOVWF   CCPR2L    
     
@@ -136,20 +147,21 @@ MOVWF   CCPR2L
 ;	  SELEÇÃO DE MODO         ;
 ;=================================;
 
-MODO:	;função de seleção do modo (exploração ou seguimento)
+MODO:			; Função de seleção do modo (exploração ou seguimento)
     
     BANKSEL PORTD
     MOVLW b'00000000'	; Garantia de que o carrinho inicie parado
     MOVWF PORTD
     
     BTFSC PORTB, 6	; Se = 0 pula a linha e vai pro modo parado ou seguimento
-    GOTO CAMINHO	; Se = 1 vai pro modo de mapeamento 
+    GOTO FRENTE		; Se = 1 vai pro modo de mapeamento 
     
     BTFSS PORTB, 7	; Testa o bit 7 da portb
     GOTO PARADO		; Se = 0 modo parado
-    GOTO FRENTE		; Se = 1 modo frente
+    GOTO CAMINHO	; Se = 1 modo frente
 
 PARADO:
+    BANKSEL PORTD
     MOVLW b'00000000'
     MOVWF PORTD
 GOTO MODO
@@ -164,12 +176,15 @@ GOTO MODO
 ;===================================================;	    
 GERA_INT:		; Preparado pra lógica normal (sensor = 1)    
     
+    BANKSEL PORTB
     BCF PORTB, 3	; Valor incial de RB3 = 0 
     
     BTFSC PORTB, 4	; Se RB4 = 0, CONTINUA
     BSF PORTB, 3	; RB3 = 1
-    GOTO NSABO           
-
+    
+    BTFSS PORTB, 4
+    GOTO NSABO
+    
     BTFSS F_ESQ, 0	; Verifica se a flag da esquerda foi ativada
     GOTO DIREITA
     GOTO ESQUERDA
@@ -179,8 +194,6 @@ NSABO:
     BTFSC PORTB, 4
     GOTO GIRAR180
     
-    
-    BCF F_DIR, 0        ; Limpa a flag direita
     BCF F_ESQ, 0        ; Limpa a flag esquerda
     BCF PORTB, 3        ; Valor final para RB3 = 0
     
@@ -203,7 +216,7 @@ MOVWF GIRO_OP		 ; Move o valor em W para o operador de giro
 		 		 
 CALL GERA_INT		 ; Chama a função de verificar a interrupção    
 
-MOVLW b'10010000'	 ; Move o valor para W
+MOVLW b'10100000'	 ; Move o valor para W
 MOVWF PORTD		 ; Move o valor de W para portd (ligar os motores)
 
 LUPASSO:
@@ -218,15 +231,21 @@ SUBLW 0			 ; Subtrai por 0
 BTFSS STATUS, Z		 ; Verifica se já acabou o loop
 GOTO LUPASSO		 ; Retorna para a rotina de ir pra frente
 
-BTFSC PORTB, 6		 ; GAMBIARRA   
+BTFSS PORTB, 6		 ; Gambiarra   
+GOTO OLHA
 BTFSS PORTB, 7		 ; Verifica qual a prioridade  
-
-BTFSC PORTB, 6		 ; GAMBIARRA
 GOTO PASSO_E		 ; Chama a função de adicionar passo ao contador esquerdo
-
-BTFSC PORTB, 6		 ; GAMBIARRA    
 GOTO PASSO_D		 ; Chama a função de adicionar passo ao contador direito
 
+
+; ------------- Rotina de olhar pros lados pós passo ------------- ;     
+
+OLHA:    
+    
+;BTFSS PORTB, 7
+;GOTO OLHADA_ESQUERDA
+;GOTO OLHADA_DIREITA    
+    
 GOTO FRENTE		 ; LOOP FUNÇÃO FRENTE
 
 ;---------------------------------------------------;
@@ -239,7 +258,7 @@ GOTO FRENTE		 ; LOOP FUNÇÃO FRENTE
    
 ESQUERDA:
     BANKSEL PORTD
-    MOVLW b'01010000'	 ; Liga o motor esquerdo e inverte o direito
+    MOVLW b'10010000'	 ; Liga o motor esquerdo e inverte o direito
     MOVWF PORTD
     
     LUESQUERDA:
@@ -254,7 +273,7 @@ ESQUERDA:
 
 DIREITA:
     BANKSEL PORTD
-    MOVLW b'10100000'	 ; Liga o motor esquerdo e inverte o direito
+    MOVLW b'01100000'	 ; Liga o motor esquerdo e inverte o direito
     MOVWF PORTD 
     
     LUDIREITA:
@@ -272,9 +291,9 @@ GIRAR180:
     BANKSEL PORTD
     MOVF GIRO,0	         ; Move o valor da variável giro para W
     MOVWF GIRO_OP	 ; Move o valor em W para o operador de giro
-    ADDWF GIRO_OP, 0	 ; fazer o dobro da variável giro
+    ADDWF GIRO_OP, 1	 ; fazer o dobro da variável giro
     
-    MOVLW b'10100000'	 ; Liga o motor esquerdo e inverte o direito
+    MOVLW b'01100000'	 ; Liga o motor esquerdo e inverte o direito
     MOVWF PORTD 
     
     LUGIRA:
@@ -292,10 +311,14 @@ GIRAR180:
 ;	  FUNÇÃO PARA INCREMENTAR OS PASSOS	    ;
 ;===================================================;	        
 PASSO_D:
+    BANKSEL PORTB
+    BTFSC PORTB,6 
     INCF CPASSO_D
     GOTO FRENTE
 ;---------------------------------------------------;
 PASSO_E:
+    BANKSEL PORTB
+    BTFSC PORTB, 6
     INCF CPASSO_E
     GOTO FRENTE
 ;===================================================;   
@@ -311,14 +334,24 @@ PASSO_E:
  SUBLW  CPASSO_E      ; W = C_PASSO_E - CPASSO_D
  
  ; Caso onde PASSOE = PASSOD
- BTFSS STATUS, Z 
- BSF PORTB, 5
+ BTFSC STATUS, Z 
+ GOTO PARADO
  
+ BCF PORTB, 5	    ; OFF na flag do melhor caminho esquerda
  ; se chegou aqui, os valores são diferentes...
  BTFSS STATUS, C    ; Se ESQ > DIR, C = 1
  BSF PORTB, 5	    ; Seta a flag do melhor caminho esquerda
- BCF PORTB, 5	    ; OFF na flag do melhor caminho esquerda
- 
  GOTO FRENTE 
  
 END
+
+
+ 
+ 
+ ; Lógica do melhor caminho certa, agora falta implementar na rotina frente
+ ; Criar lógica de olhar pro lado
+ 
+ 
+ ; Retirei a flag dir, inutil na lógica do código
+ ; Corrigi o teste de Z na escolha do melhor caminho
+ ; Corrigi o sentido dos pinos do driver
